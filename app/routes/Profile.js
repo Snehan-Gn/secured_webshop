@@ -4,7 +4,10 @@ const path       = require('path');
 const router     = express.Router();
 const controller = require('../controllers/ProfileController');
 
-// Configuration de multer pour l'upload de photos
+// --- AJOUTE CETTE LIGNE ---
+const { verifyToken } = require('../middleware/auth'); 
+
+// Configuration de multer
 const storage = multer.diskStorage({
     destination: path.join(__dirname, '../public/uploads'),
     filename: (_req, file, cb) => {
@@ -14,8 +17,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.get('/',      controller.get);
-router.post('/',     controller.update);
-router.post('/photo', upload.single('photo'), controller.uploadPhoto);
+// --- APPLIQUE verifyToken SUR CHAQUE ROUTE ---
+// Sinon le controller ne sait pas quel ID chercher
+router.get('/',       verifyToken, controller.get);
+router.post('/',      verifyToken, controller.update);
+router.post('/photo', verifyToken, upload.single('photo'), controller.uploadPhoto);
 
 module.exports = router;

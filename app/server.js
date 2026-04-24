@@ -2,6 +2,8 @@ require('dotenv').config({ path: '../.env' });
 
 const express = require("express");
 const path = require("path");
+const https = require("https"); // AJOUT : Module natif HTTPS
+const fs = require("fs");       // AJOUT : Pour lire tes fichiers de certificat
 
 const app = express();
 
@@ -9,12 +11,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Fichiers statiques (CSS, images, uploads...)
+// Fichiers statiques
 app.use(express.static(path.join(__dirname, "public")));
 
-// ---------------------------------------------------------------
-// Routes API (retournent du JSON)
-// ---------------------------------------------------------------
+// --- Routes API ---
 const authRoute    = require("./routes/Auth");
 const profileRoute = require("./routes/Profile");
 const adminRoute   = require("./routes/Admin");
@@ -23,9 +23,7 @@ app.use("/api/auth",    authRoute);
 app.use("/api/profile", profileRoute);
 app.use("/api/admin",   adminRoute);
 
-// ---------------------------------------------------------------
-// Routes pages (retournent du HTML)
-// ---------------------------------------------------------------
+// --- Routes pages ---
 const homeRoute = require("./routes/Home");
 const userRoute = require("./routes/User");
 
@@ -37,8 +35,18 @@ app.get("/register", (_req, res) => res.sendFile(path.join(__dirname, "views", "
 app.get("/profile",  (_req, res) => res.sendFile(path.join(__dirname, "views", "profile.html")));
 app.get("/admin",    (_req, res) => res.sendFile(path.join(__dirname, "views", "admin.html")));
 
-// Démarrage du serveur
-app.get("/test",      (_req, res) => res.send("db admin: root, pwd : root"));
-app.listen(8080, () => {
-    console.log("Serveur démarré sur http://localhost:8080");
+app.get("/test",     (_req, res) => res.send("db admin: root, pwd : root"));
+
+// ---------------------------------------------------------------
+// CONFIGURATION HTTPS
+// ---------------------------------------------------------------
+
+const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, "server.key")),
+    cert: fs.readFileSync(path.join(__dirname, "server.cert"))
+};
+
+const PORT = 8080; 
+https.createServer(sslOptions, app).listen(PORT, () => {
+    console.log(`✅ Serveur sécurisé démarré sur https://localhost:${PORT}`);
 });

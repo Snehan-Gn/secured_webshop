@@ -4,7 +4,7 @@ const connection = mysql.createConnection({
     host:     process.env.DB_HOST || 'localhost',
     port:     process.env.DB_PORT || 3306,
     user:     process.env.DB_USER || 'db_user',
-    password: process.env.DB_PASS || 'db_password',
+    password: process.env.DB_PASS || process.env.DB_PASSWORD || 'db_password',
     database: process.env.DB_NAME || 'webshop'
 });
 

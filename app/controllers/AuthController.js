@@ -8,6 +8,18 @@ const {
   revokeRefreshToken,
   verifyStoredRefreshToken,
 } = require("../utils/tokens");
+const {
+  getClientIp,
+  isIpRateLimited,
+  recordLoginAttempt,
+  refreshLockState,
+  clearAccountLock,
+  registerFailedLogin,
+  unlockWithToken,
+  MAX_PER_IP,
+  RATE_WINDOW_MIN,
+  LOCK_AFTER,
+} = require("../utils/loginSecurity");
 
 const PEPPER = process.env.PEPPER;
 
@@ -34,33 +46,110 @@ function issueTokens(user, res) {
   });
 }
 
+async function failLogin(res, { user, email, ip, status = 401, message }) {
+  try {
+    await recordLoginAttempt({
+      userId: user?.id,
+      email,
+      ip,
+      success: false,
+    });
+    if (user) {
+      const result = await registerFailedLogin(user);
+      if (result.locked) {
+        return res.status(423).json({
+          error: "Compte verrouillé après trop de tentatives échouées.",
+          lockedUntil: result.lockedUntil,
+          unlockToken: result.unlockToken,
+        });
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+
+  const payload = { error: message || "Email ou mot de passe incorrect" };
+  if (user) {
+    const left = LOCK_AFTER - (user.failed_login_count || 0) - 1;
+    if (left > 0 && left < LOCK_AFTER) {
+      payload.attemptsRemaining = left;
+    }
+  }
+  return res.status(status).json(payload);
+}
+
 module.exports = {
-  login: (req, res) => {
+  login: async (req, res) => {
     const { email, password } = req.body;
+    const ip = getClientIp(req);
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email et mot de passe requis" });
     }
 
-    const query = `SELECT * FROM users WHERE email = ?`;
-
-    db.query(query, [email], async (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-
-      if (results.length === 0) {
-        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+    try {
+      if (await isIpRateLimited(ip)) {
+        return res.status(429).json({
+          error: `Trop de tentatives depuis cette adresse IP. Limite : ${MAX_PER_IP} par ${RATE_WINDOW_MIN} minute(s).`,
+        });
       }
 
+      const results = await new Promise((resolve, reject) => {
+        db.query(`SELECT * FROM users WHERE email = ?`, [email], (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+
       const user = results[0];
+      if (user) {
+        const lockState = await refreshLockState(user);
+        if (lockState.locked) {
+          return res.status(423).json({
+            error: "Compte temporairement verrouillé. Réessayez plus tard ou débloquez le compte.",
+            lockedUntil: lockState.user.locked_until,
+          });
+        }
+      }
+
+      if (!user) {
+        return failLogin(res, { email, ip });
+      }
+
       const passwordWithPepper = password + PEPPER;
       const isMatch = await bcrypt.compare(passwordWithPepper, user.password);
 
       if (!isMatch) {
-        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+        return failLogin(res, { user, email, ip });
       }
 
+      await recordLoginAttempt({ userId: user.id, email, ip, success: true });
+      await clearAccountLock(user.id);
       issueTokens(user, res);
-    });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  unlock: async (req, res) => {
+    const { email, unlockToken } = req.body;
+
+    if (!email || !unlockToken) {
+      return res.status(400).json({ error: "Email et jeton de déblocage requis" });
+    }
+
+    try {
+      const ok = await unlockWithToken(email, unlockToken);
+      if (!ok) {
+        return res.status(400).json({ error: "Jeton invalide ou expiré" });
+      }
+      res.json({ message: "Compte débloqué. Vous pouvez vous reconnecter." });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
   },
 
   refresh: (req, res) => {

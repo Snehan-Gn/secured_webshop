@@ -12,6 +12,7 @@ Cette application est un serveur web Node.js qui regroupe deux parties : un **ba
 | **Mots de passe** | Min. 12 caractères, majuscule, minuscule, chiffre, caractère spécial + indicateur de force à l'inscription. |
 | **JWT** | Access token **15 min** ; refresh token **7 jours** stocké en base (hash SHA-256). |
 | **Audit NPM** | Dépendances consolidées dans `app/` — voir [docs/AUDIT-NPM.md](docs/AUDIT-NPM.md). |
+| **Anti brute-force** | 5 tentatives / minute / IP ; verrouillage compte après 5 échecs ; journal en BDD. |
 
 ---
 
@@ -81,10 +82,12 @@ L'application démarre sur **https://localhost:8080**
 | POST | `/api/auth/register` | Inscription (mot de passe fort requis) |
 | POST | `/api/auth/refresh` | Renouveler l'access token |
 | POST | `/api/auth/logout` | Révoquer le refresh token |
+| POST | `/api/auth/unlock` | Débloquer un compte (email + jeton) |
 | GET | `/api/profile` | Profil (Bearer access token) |
 | POST | `/api/profile` | Mettre à jour l'adresse |
 | POST | `/api/profile/photo` | Photo de profil |
 | GET | `/api/admin` | Liste des utilisateurs (admin) |
+| POST | `/api/admin/users/:id/unlock` | Déblocage manuel (admin) |
 
 ---
 

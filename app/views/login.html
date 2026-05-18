@@ -13,21 +13,41 @@
       <section class="hero">
         <div class="container">
           <h1>Connexion</h1>
-          <form id="loginForm">
-            Email:<br />
-            <input type="email" id="email" placeholder="Email" required /><br /><br />
-
-            Mot de passe:<br />
-            <input type="password" id="password" placeholder="Password" required /><br /><br />
-
+          <form id="loginForm" class="auth-form">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" placeholder="votre@email.com" required />
+            </div>
+            <div class="form-group">
+              <label for="password">Mot de passe</label>
+              <input type="password" id="password" placeholder="Mot de passe" required />
+            </div>
             <input type="submit" value="Se connecter" class="cta" />
           </form>
-          <p id="error-message" style="color: red; margin-top: 10px;"></p>
+
+          <p id="error-message" class="message error" style="display: none; max-width: 500px; margin: 1rem auto"></p>
+
+          <div id="unlock-panel" class="unlock-panel">
+            <h2>Débloquer le compte</h2>
+            <p id="unlock-hint" class="hint"></p>
+            <form id="unlockForm" class="auth-form" style="margin-top: 0; box-shadow: none; padding: 0; border: none; background: transparent">
+              <div class="form-group">
+                <label for="unlock-email">Email</label>
+                <input type="email" id="unlock-email" required />
+              </div>
+              <div class="form-group">
+                <label for="unlock-token">Jeton de déblocage</label>
+                <input type="text" id="unlock-token" required />
+              </div>
+              <input type="submit" value="Débloquer" class="cta" />
+            </form>
+            <p id="unlock-message" style="margin-top: 1rem; font-weight: 600"></p>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer id="contact" class="footer">
+    <footer class="footer">
       <div class="container">
         <p>Projet pedagogique - ETML 183</p>
       </div>
@@ -36,35 +56,96 @@
     <script src="/js/nav.js"></script>
     <script src="/js/auth.js"></script>
     <script>
-      document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+      const errorMsg = document.getElementById("error-message");
+      const unlockPanel = document.getElementById("unlock-panel");
+      const unlockHint = document.getElementById("unlock-hint");
+      const unlockMsg = document.getElementById("unlock-message");
 
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const errorMsg = document.getElementById('error-message');
+      function showError(text) {
+        if (!text) {
+          errorMsg.style.display = "none";
+          errorMsg.innerText = "";
+          return;
+        }
+        errorMsg.style.display = "block";
+        errorMsg.innerText = text;
+      }
+
+      function showUnlockPanel(email, unlockToken) {
+        unlockPanel.style.display = "block";
+        document.getElementById("unlock-email").value = email || "";
+        if (unlockToken) {
+          document.getElementById("unlock-token").value = unlockToken;
+          unlockHint.textContent =
+            "Conservez ce jeton pour débloquer le compte sans attendre la fin du verrouillage.";
+        } else {
+          unlockHint.textContent = "Utilisez le jeton reçu lors du verrouillage du compte.";
+        }
+      }
+
+      document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        showError("");
+        unlockMsg.innerText = "";
+
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
 
         try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
           });
 
           const data = await response.json();
 
           if (response.ok) {
             setTokens(data);
+            window.location.href = data.user.role === "admin" ? "/admin" : "/profile";
+            return;
+          }
 
-            if (data.user.role === 'admin') {
-              window.location.href = '/admin';
-            } else {
-              window.location.href = '/profile';
-            }
-          } else {
-            errorMsg.innerText = data.error || "Identifiants incorrects";
+          let text = data.error || "Identifiants incorrects";
+          if (data.attemptsRemaining != null) {
+            text += ` (${data.attemptsRemaining} essai(s) restant(s) avant verrouillage)`;
+          }
+          showError(text);
+
+          if (response.status === 423) {
+            showUnlockPanel(email, data.unlockToken);
           }
         } catch {
-          errorMsg.innerText = "Erreur de connexion au serveur (HTTPS requis)";
+          showError("Erreur de connexion au serveur (HTTPS requis)");
+        }
+      });
+
+      document.getElementById("unlockForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        unlockMsg.innerText = "";
+        unlockMsg.style.color = "";
+
+        try {
+          const response = await fetch("/api/auth/unlock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("unlock-email").value,
+              unlockToken: document.getElementById("unlock-token").value,
+            }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            unlockMsg.style.color = "#15803d";
+            unlockMsg.innerText = data.message;
+            showError("");
+          } else {
+            unlockMsg.style.color = "#b91c1c";
+            unlockMsg.innerText = data.error || "Échec du déblocage";
+          }
+        } catch {
+          unlockMsg.style.color = "#b91c1c";
+          unlockMsg.innerText = "Erreur serveur";
         }
       });
     </script>

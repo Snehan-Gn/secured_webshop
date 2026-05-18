@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Shop - Mon Profil</title>
     <link rel="stylesheet" href="/css/main.css">
 </head>
@@ -19,13 +20,16 @@
                 </div>
                 <hr>
                 <div id="status-message" style="display:none; padding: 10px; margin: 10px 0; border-radius: 4px;"></div>
-                <form id="address-form">
-                    <div class="form-group"><label>Adresse</label><input type="text" id="address" placeholder="Votre adresse complète"></div>
+                <form id="address-form" class="profile-form">
+                    <div class="form-group"><label for="address">Adresse</label><input type="text" id="address" placeholder="Votre adresse complète"></div>
                     <button type="submit" class="cta">Mettre à jour l'adresse</button>
                 </form>
             </div>
         </div>
     </main>
+    <footer class="footer">
+        <div class="container"><p>Projet pedagogique - ETML 183</p></div>
+    </footer>
     <script src="/js/nav.js"></script>
     <script src="/js/auth.js"></script>
     <script>

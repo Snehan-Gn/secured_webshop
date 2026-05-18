@@ -50,8 +50,8 @@ const certPath = path.join(__dirname, "server.cert");
 
 function loadSslOptions() {
   if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-    console.error("Certificats HTTPS introuvables.");
-    console.error("Exécutez : cd app && bash scripts/generate-ssl.sh");
+    console.error("Certificats HTTPS introuvables (server.key, server.cert dans app/).");
+    console.error("Générez-les avec openssl depuis le dossier app/ (voir README).");
     process.exit(1);
   }
   return {

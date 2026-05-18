@@ -42,7 +42,7 @@ npm audit fix --force   # à utiliser avec prudence, puis retester l’applicati
 ## Vérification après correction
 
 1. `docker-compose up` — base MySQL avec table `refresh_tokens`.
-2. `cd app && npm run ssl:generate && npm start`
+2. `cd app && npm start` (certificats HTTPS déjà présents ou générés via openssl, voir README)
 3. Tester : inscription (mot de passe fort), connexion, profil, admin, renouvellement de session après 15 min (access token).
 
 ## Suivi continu

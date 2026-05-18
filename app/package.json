@@ -5,7 +5,6 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js -L",
-    "ssl:generate": "bash scripts/generate-ssl.sh",
     "audit": "npm audit",
     "audit:fix": "npm audit fix"
   },

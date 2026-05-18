@@ -44,7 +44,8 @@ cp .env.example .env
 ```bash
 cd app
 npm install
-npm run ssl:generate
+openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.cert -days 365 -nodes -subj "/CN=localhost"
+chmod 600 server.key
 ```
 
 Génère `server.key` et `server.cert` (auto-signés, valides 1 an). Le navigateur affichera un avertissement : accepter l'exception pour `localhost`.

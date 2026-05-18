@@ -1,14 +1,40 @@
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
-const jwt = require('jsonwebtoken');
+const { validatePassword } = require("../utils/passwordPolicy");
+const {
+  signAccessToken,
+  signRefreshToken,
+  saveRefreshToken,
+  revokeRefreshToken,
+  verifyStoredRefreshToken,
+} = require("../utils/tokens");
 
-const PEPPER = process.env.PEPPER; 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key'; 
+const PEPPER = process.env.PEPPER;
+
+function issueTokens(user, res) {
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  saveRefreshToken(user.id, refreshToken, (err) => {
+    if (err) {
+      return res.status(500).json({ error: "Erreur lors de la création de session" });
+    }
+
+    res.json({
+      message: "Connexion réussie",
+      accessToken,
+      refreshToken,
+      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.username,
+        role: user.role,
+      },
+    });
+  });
+}
 
 module.exports = {
-  // ----------------------------------------------------------
-  // POST /api/auth/login
-  // ----------------------------------------------------------
   login: (req, res) => {
     const { email, password } = req.body;
 
@@ -26,7 +52,6 @@ module.exports = {
       }
 
       const user = results[0];
-
       const passwordWithPepper = password + PEPPER;
       const isMatch = await bcrypt.compare(passwordWithPepper, user.password);
 
@@ -34,55 +59,98 @@ module.exports = {
         return res.status(401).json({ error: "Email ou mot de passe incorrect" });
       }
 
-      const token = jwt.sign(
-        { 
-          id: user.id, 
-          username: user.username, 
-          role: user.role 
-        }, 
-        JWT_SECRET, 
-        { expiresIn: '1h' }
-      );
+      issueTokens(user, res);
+    });
+  },
 
-      res.json({ 
-        message: "Connexion réussie", 
-        token: token, 
-        user: { 
-          id: user.id, 
-          name: user.username, 
-          role: user.role 
-        } 
+  refresh: (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token requis" });
+    }
+
+    verifyStoredRefreshToken(refreshToken, (err, row) => {
+      if (err) {
+        return res.status(403).json({ error: err.message });
+      }
+
+      const user = {
+        id: row.user_id,
+        username: row.username,
+        role: row.role,
+      };
+
+      const accessToken = signAccessToken(user);
+      res.json({
+        accessToken,
+        token: accessToken,
+        user: {
+          id: user.id,
+          name: user.username,
+          role: user.role,
+        },
       });
     });
   },
 
-  // ----------------------------------------------------------
-  // POST /api/auth/register
-  // ----------------------------------------------------------
+  logout: (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token requis" });
+    }
+
+    revokeRefreshToken(refreshToken, (err) => {
+      if (err) {
+        return res.status(500).json({ error: "Erreur lors de la déconnexion" });
+      }
+      res.json({ message: "Déconnexion réussie" });
+    });
+  },
+
   register: async (req, res) => {
-    const { name, email, password, role, address } = req.body; 
+    const { name, email, password, role, address } = req.body;
 
     if (!name || !email || !password || !address) {
-      return res.status(400).json({ error: "Tous les champs sont requis, y compris l'adresse" });
+      return res
+        .status(400)
+        .json({ error: "Tous les champs sont requis, y compris l'adresse" });
+    }
+
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.ok) {
+      return res.status(400).json({
+        error: passwordCheck.error,
+        details: passwordCheck.details,
+      });
     }
 
     try {
       const passwordWithPepper = password + PEPPER;
-      const saltRounds = 10; 
+      const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(passwordWithPepper, saltRounds);
-
       const userRole = role || "user";
 
       const query = `INSERT INTO users (username, email, password, role, address) VALUES (?, ?, ?, ?, ?)`;
 
-      db.query(query, [name, email, hashedPassword, userRole, address], (err, result) => {
-        if (err) {
-          console.error("Erreur SQL:", err);
-          return res.status(500).json({ error: "Erreur lors de la création en base de données" });
-        }
-        
-        res.status(201).json({ message: "Utilisateur créé avec succès" });
-      });
+      db.query(
+        query,
+        [name, email, hashedPassword, userRole, address],
+        (err) => {
+          if (err) {
+            console.error("Erreur SQL:", err);
+            if (err.code === "ER_DUP_ENTRY") {
+              return res.status(409).json({ error: "Cet email est déjà utilisé" });
+            }
+            return res
+              .status(500)
+              .json({ error: "Erreur lors de la création en base de données" });
+          }
+
+          res.status(201).json({ message: "Utilisateur créé avec succès" });
+        },
+      );
     } catch (err) {
       console.error("Erreur Interne:", err);
       res.status(500).json({ error: "Erreur lors du traitement du mot de passe" });

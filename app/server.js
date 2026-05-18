@@ -1,52 +1,67 @@
-require('dotenv').config({ path: '../.env' });
+require("dotenv").config({ path: "../.env" });
 
 const express = require("express");
 const path = require("path");
-const https = require("https"); // AJOUT : Module natif HTTPS
-const fs = require("fs");       // AJOUT : Pour lire tes fichiers de certificat
+const https = require("https");
+const fs = require("fs");
 
 const app = express();
 
-// Middleware pour parser le corps des requêtes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Fichiers statiques
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
-// --- Routes API ---
-const authRoute    = require("./routes/Auth");
+const authRoute = require("./routes/Auth");
 const profileRoute = require("./routes/Profile");
-const adminRoute   = require("./routes/Admin");
+const adminRoute = require("./routes/Admin");
 
-app.use("/api/auth",    authRoute);
+app.use("/api/auth", authRoute);
 app.use("/api/profile", profileRoute);
-app.use("/api/admin",   adminRoute);
+app.use("/api/admin", adminRoute);
 
-// --- Routes pages ---
 const homeRoute = require("./routes/Home");
 const userRoute = require("./routes/User");
 
 app.use("/", homeRoute);
 app.use("/user", userRoute);
 
-app.get("/login",    (_req, res) => res.sendFile(path.join(__dirname, "views", "login.html")));
-app.get("/register", (_req, res) => res.sendFile(path.join(__dirname, "views", "register.html")));
-app.get("/profile",  (_req, res) => res.sendFile(path.join(__dirname, "views", "profile.html")));
-app.get("/admin",    (_req, res) => res.sendFile(path.join(__dirname, "views", "admin.html")));
+app.get("/login", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "login.html")),
+);
+app.get("/register", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "register.html")),
+);
+app.get("/profile", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "profile.html")),
+);
+app.get("/admin", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "admin.html")),
+);
 
-app.get("/test",     (_req, res) => res.send("db admin: root, pwd : root"));
+const PORT = process.env.PORT || 8080;
+const keyPath = path.join(__dirname, "server.key");
+const certPath = path.join(__dirname, "server.cert");
 
-// ---------------------------------------------------------------
-// CONFIGURATION HTTPS
-// ---------------------------------------------------------------
+function loadSslOptions() {
+  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+    console.error("Certificats HTTPS introuvables.");
+    console.error("Exécutez : cd app && bash scripts/generate-ssl.sh");
+    process.exit(1);
+  }
+  return {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  };
+}
 
-const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, "server.key")),
-    cert: fs.readFileSync(path.join(__dirname, "server.cert"))
-};
+const sslOptions = loadSslOptions();
 
-const PORT = 8080; 
 https.createServer(sslOptions, app).listen(PORT, () => {
-    console.log(`✅ Serveur sécurisé démarré sur https://localhost:${PORT}`);
+  console.log(`Serveur HTTPS démarré sur https://localhost:${PORT}`);
 });

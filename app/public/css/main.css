@@ -396,3 +396,55 @@ main p a {
 main p a:hover {
     text-decoration: underline;
 }
+
+.password-strength {
+    margin: -8px 0 16px;
+}
+
+.password-strength-track {
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.password-strength-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.password-strength-bar[data-level="0"] { width: 10%; background: #ef4444; }
+.password-strength-bar[data-level="1"] { width: 30%; background: #f97316; }
+.password-strength-bar[data-level="2"] { width: 55%; background: #eab308; }
+.password-strength-bar[data-level="3"] { width: 80%; background: #84cc16; }
+.password-strength-bar[data-level="4"] { width: 100%; background: #22c55e; }
+
+.password-strength-label {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.password-strength-rules {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+}
+
+.password-strength-rules li {
+    margin: 2px 0;
+    color: var(--muted);
+}
+
+.password-strength-rules li.valid {
+    color: #15803d;
+}
+
+.password-strength-rules li.invalid {
+    color: #9ca3af;
+}

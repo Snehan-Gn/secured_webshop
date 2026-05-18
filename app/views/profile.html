@@ -27,8 +27,8 @@
         </div>
     </main>
     <script src="/js/nav.js"></script>
+    <script src="/js/auth.js"></script>
     <script>
-        const token = localStorage.getItem('token');
         const statusMsg = document.getElementById('status-message');
 
         function showStatus(text, isError = false) {
@@ -39,14 +39,12 @@
         }
 
         async function loadProfile() {
-            if (!token) {
+            if (!getAccessToken()) {
                 showStatus("Connectez-vous pour voir votre profil", true);
                 return;
             }
             try {
-                const res = await fetch('/api/profile', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
+                const res = await fetchWithAuth('/api/profile');
                 const user = await res.json();
                 if (res.ok) {
                     document.getElementById('username').textContent = user.username;
@@ -54,19 +52,18 @@
                     document.getElementById('role').textContent = user.role;
                     document.getElementById('address').value = user.address || '';
                 } else {
-                    showStatus("Session expirée ou invalide", true);
+                    showStatus(user.error || "Session expirée ou invalide", true);
                 }
-            } catch (err) { showStatus("Erreur de connexion HTTPS", true); }
+            } catch {
+                showStatus("Erreur de connexion HTTPS", true);
+            }
         }
 
         document.getElementById('address-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const res = await fetch('/api/profile', {
+            const res = await fetchWithAuth('/api/profile', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token 
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ address: document.getElementById('address').value })
             });
             if (res.ok) showStatus('Adresse mise à jour !');

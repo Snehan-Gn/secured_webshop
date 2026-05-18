@@ -1,16 +1,26 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_key";
 
 module.exports = {
   verifyToken: (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; 
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
 
-    if (!token) return res.status(401).json({ error: "Accès refusé, token manquant" });
+    if (!token) {
+      return res.status(401).json({ error: "Accès refusé, token manquant" });
+    }
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(403).json({ error: "Token invalide ou expiré" });
-      
-      req.user = decoded; 
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ error: "Token invalide ou expiré" });
+      }
+
+      if (decoded.type && decoded.type !== "access") {
+        return res.status(403).json({ error: "Type de token non autorisé" });
+      }
+
+      req.user = decoded;
       next();
     });
   },

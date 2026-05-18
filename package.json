@@ -1,7 +1,10 @@
 {
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.2",
-    "jsonwebtoken": "^9.0.3"
+  "name": "secured-webshop-meta",
+  "private": true,
+  "scripts": {
+    "start": "cd app && npm start",
+    "install:app": "cd app && npm install",
+    "audit": "cd app && npm audit",
+    "audit:fix": "cd app && npm audit fix"
   }
 }

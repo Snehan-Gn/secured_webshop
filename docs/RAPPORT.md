@@ -1,4 +1,5 @@
 # Mon Rapport de Projet : Secured Webshop
+Snehan Gnanassorian - MID2B
 
 ## Introduction
 Dans le cadre du cours **183 - Sécurité des applications**, j'ai dû travailler sur une boutique en ligne qui avait pas mal de failles de sécurité. Mon but était de sécuriser tout ça pour protéger les utilisateurs et leurs données.
